@@ -1,0 +1,9 @@
+[package]
+authors = ["Víctor Jáquez vjaquez@igalia.com"]
+name = "gl2md"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+mysql = "*"
+pandoc = "0.8"

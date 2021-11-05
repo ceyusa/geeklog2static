@@ -7,6 +7,54 @@ use pandoc::*;
 use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::Path;
+use std::sync::mpsc::{channel, Sender};
+use std::thread;
+
+struct Content {
+    slug: String,
+    text: String,
+}
+
+enum Message {
+    Write(Content),
+    Quit,
+}
+
+struct Writer {
+    tx: Sender<Message>,
+}
+
+impl Writer {
+    fn new(dir: String) -> Result<Self> {
+        let _dir = dir.clone();
+        create_dir_all(dir)?;
+        let (tx, rx) = channel();
+        let _ = thread::spawn(move || loop {
+            match rx.recv().unwrap() {
+                Message::Quit => break,
+                Message::Write(content) => {
+                    let fsname = &format!("{}/{}.md", _dir, content.slug);
+                    let path = Path::new(&fsname);
+                    File::create(&path)
+                        .and_then(|mut file| file.write_all(content.text.as_bytes()))
+                        .unwrap_or_else(|err| eprintln!("Failed to write article: {}", err));
+                }
+            }
+        });
+        Ok(Writer { tx })
+    }
+    fn write(&self, content: Content) {
+        self.tx
+            .send(Message::Write(content))
+            .unwrap_or_else(|err| eprintln!("Failed write article: {}", err));
+    }
+}
+
+impl Drop for Writer {
+    fn drop(&mut self) {
+        self.tx.send(Message::Quit).unwrap();
+    }
+}
 
 #[derive(Debug, PartialEq)]
 enum PostMode {
@@ -89,18 +137,11 @@ impl Article {
     fn new(row: Row) -> Self {
         from_row::<Article>(row)
     }
-    fn setup(&self) -> std::io::Result<()> {
-        create_dir_all("content")
-    }
-    fn write(&self, text: String) -> std::io::Result<()> {
-        let fsname = &format!("content/{}.md", self.slug);
-        let path = Path::new(&fsname);
-        let mut file = File::create(&path)?;
-        file.write_all(text.as_bytes())
-    }
-    fn compose(&self, text: String) -> String {
-        String::from(format!(
-            "\
+    fn compose(&self) -> Content {
+        Content {
+            slug: self.slug.clone(),
+            text: format!(
+                "\
 +++
 title = {}
 slug = {}
@@ -112,8 +153,14 @@ topic = {}
 
 {}
 ",
-            self.title, self.slug, self.author, self.date, self.topic, text
-        ))
+                self.title,
+                self.slug,
+                self.author,
+                self.date,
+                self.topic,
+                self.convert()
+            ),
+        }
     }
     fn convert(&self) -> String {
         let mut pandoc = pandoc::new();
@@ -147,13 +194,11 @@ topic = {}
             }
         }
     }
-    fn process(&self) -> std::io::Result<()> {
-        self.setup()?;
-        self.write(self.compose(self.convert()))
-    }
 }
 
 fn main() -> Result<()> {
+    let writer = Writer::new("content".to_string())?;
+
     let url = Opts::from_url("mysql://vjaquez@localhost/geeklog")?;
     let mut conn = Conn::new(url)?;
 
@@ -168,10 +213,8 @@ fn main() -> Result<()> {
     )?;
 
     query.for_each(|row| match row {
-        Ok(row) => Article::new(row).process().unwrap_or_else(|err| {
-            eprintln!("Failed to process article: {}", err);
-        }),
-        Err(err) => eprintln!("Error: {}", err),
+        Ok(row) => writer.write(Article::new(row).compose()),
+        Err(err) => eprintln!("SQL Error: {}", err),
     });
 
     Ok(())

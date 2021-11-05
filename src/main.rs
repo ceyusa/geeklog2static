@@ -1,9 +1,14 @@
 extern crate mysql;
+extern crate pandoc;
 
 use mysql::prelude::*;
 use mysql::*;
+use pandoc::*;
+use std::fs::{create_dir_all, File};
+use std::io::Write;
+use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum PostMode {
     Unknown,
     Text,
@@ -84,8 +89,67 @@ impl Article {
     fn new(row: Row) -> Self {
         from_row::<Article>(row)
     }
-    fn dump(&self) {
-        println!("{:?}", self);
+    fn setup(&self) -> std::io::Result<()> {
+        create_dir_all("content")
+    }
+    fn write(&self, text: String) -> std::io::Result<()> {
+        let fsname = &format!("content/{}.md", self.slug);
+        let path = Path::new(&fsname);
+        let mut file = File::create(&path)?;
+        file.write_all(text.as_bytes())
+    }
+    fn compose(&self, text: String) -> String {
+        String::from(format!(
+            "\
++++
+title = {}
+slug = {}
+author = {}
+date = {}
+[taxonomies]
+topic = {}
++++
+
+{}
+",
+            self.title, self.slug, self.author, self.date, self.topic, text
+        ))
+    }
+    fn convert(&self) -> String {
+        let mut pandoc = pandoc::new();
+        pandoc
+            .set_input(InputKind::Pipe(self.text.clone()))
+            .set_output_format(
+                OutputFormat::MarkdownGithub,
+                vec![
+                    MarkdownExtension::FencedCodeBlocks,
+                    MarkdownExtension::LineBlocks,
+                    MarkdownExtension::GridTables,
+                    MarkdownExtension::FancyLists,
+                    MarkdownExtension::DefinitionLists,
+                ],
+            )
+            .set_output(OutputKind::Pipe);
+
+        if self.mode == PostMode::HTML {
+            pandoc.set_input_format(InputFormat::Html, Vec::new());
+        }
+
+        match pandoc.execute() {
+            Ok(PandocOutput::ToBuffer(text)) => text,
+            Ok(_) => {
+                eprintln!("Wrong output for article {}", self.title);
+                String::new()
+            }
+            Err(e) => {
+                eprintln!("Conversion failed for article {}: {}", self.title, e);
+                String::new()
+            }
+        }
+    }
+    fn process(&self) -> std::io::Result<()> {
+        self.setup()?;
+        self.write(self.compose(self.convert()))
     }
 }
 
@@ -104,8 +168,10 @@ fn main() -> Result<()> {
     )?;
 
     query.for_each(|row| match row {
-        Ok(row) => Article::new(row).dump(),
-        Err(err) => println!("Error: {}", err),
+        Ok(row) => Article::new(row).process().unwrap_or_else(|err| {
+            eprintln!("Failed to process article: {}", err);
+        }),
+        Err(err) => eprintln!("Error: {}", err),
     });
 
     Ok(())

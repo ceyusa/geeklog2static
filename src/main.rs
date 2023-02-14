@@ -71,7 +71,8 @@ struct Article {
     author: String,
     date: String,
     mode: PostMode,
-    text: String,
+    summary: String,
+    text: Option<String>,
 }
 
 impl FromRow for Article {
@@ -118,16 +119,21 @@ impl FromRow for Article {
                     _ => Ok(PostMode::Unknown),
                 })
                 .map_err(|_| FromRowError(row.clone()))??,
-            text: format!(
-                "{}{}",
-                row.get_opt::<String, usize>(7)
-                    .unwrap()
-                    .map_err(|_| FromRowError(row.clone()))?,
-                row.get_opt(8)
-                    .unwrap()
-                    .or::<String>(Ok(String::from("")))
-                    .unwrap(),
-            ),
+            summary: row
+                .get_opt(7)
+                .unwrap()
+                .map_err(|_| FromRowError(row.clone()))?,
+            text: row
+                .get_opt::<String, usize>(8)
+                .unwrap()
+                .map(|v| {
+                    let s = v.trim();
+                    match s {
+                        "" => None,
+                        _ => Some(s.to_string()),
+                    }
+                })
+                .map_err(|_| FromRowError(row.clone()))?,
         })
     }
 }
@@ -162,9 +168,17 @@ autor = [\"{}\"]
         }
     }
     fn convert(&self) -> String {
+        self.text.clone()
+            .map_or(self.run_pandoc(&self.summary),
+                    |t| format!("{}\n<!-- more -->\n{}",
+                                self.run_pandoc(&self.summary),
+                                self.run_pandoc(&t))
+            )
+    }
+    fn run_pandoc(&self, text: &String) -> String {
         let mut pandoc = pandoc::new();
         pandoc
-            .set_input(InputKind::Pipe(self.text.clone()))
+            .set_input(InputKind::Pipe(text.to_string()))
             .set_output_format(
                 OutputFormat::MarkdownGithub,
                 vec![

@@ -145,19 +145,19 @@ impl Article {
 +++
 title = {}
 slug = {}
-author = {}
 date = {}
 [taxonomies]
-topic = {}
+tema = [\"{}\"]
+autor = [\"{}\"]
 +++
 
 {}
 ",
                 self.title,
                 self.slug,
-                self.author,
                 self.date,
                 self.topic,
+                self.author,
                 self.convert()
             ),
         }

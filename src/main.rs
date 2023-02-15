@@ -35,7 +35,7 @@ impl Writer {
                 Message::Write(content) => {
                     let fsname = &format!("{}/{}.md", _dir, content.slug);
                     let path = Path::new(&fsname);
-                    File::create(&path)
+                    File::create(path)
                         .and_then(|mut file| file.write_all(content.text.as_bytes()))
                         .unwrap_or_else(|err| eprintln!("Failed to write article: {}", err));
                 }
@@ -60,7 +60,7 @@ impl Drop for Writer {
 enum PostMode {
     Unknown,
     Text,
-    HTML,
+    Html,
 }
 
 #[derive(Debug)]
@@ -96,8 +96,7 @@ impl FromRow for Article {
                     "" => row
                         .get_opt(4)
                         .unwrap()
-                        .or::<String>(Ok(String::from("Anónimo")))
-                        .unwrap(),
+                        .unwrap_or(String::from("Anónimo")),
                     _ => v,
                 })
                 .or_else(|_| {
@@ -115,7 +114,7 @@ impl FromRow for Article {
                 .unwrap()
                 .map(|v| match v.as_str() {
                     "plaintext" => Ok(PostMode::Text),
-                    "html" => Ok(PostMode::HTML),
+                    "html" => Ok(PostMode::Html),
                     _ => Ok(PostMode::Unknown),
                 })
                 .map_err(|_| FromRowError(row.clone()))??,
@@ -178,7 +177,7 @@ autor = [\"{}\"]
             )
             .set_output(OutputKind::Pipe);
 
-        if self.mode == PostMode::HTML {
+        if self.mode == PostMode::Html {
             pandoc.set_input_format(InputFormat::Html, Vec::new());
         }
 

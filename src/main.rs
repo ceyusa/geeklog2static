@@ -148,9 +148,9 @@ impl Article {
             text: format!(
                 "\
 +++
-title = {}
-slug = {}
-date = {}
+title = \"{}\"
+slug = \"{}\"
+date = \"{}\"
 [taxonomies]
 tema = [\"{}\"]
 autor = [\"{}\"]

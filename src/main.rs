@@ -87,8 +87,17 @@ impl FromRow for Article {
                 .unwrap()
                 .map_err(|_| FromRowError(row.clone()))?,
             title: row
-                .get_opt(2)
+                .get_opt::<String, usize>(2)
                 .unwrap()
+                .map(|v| {
+                    if v.contains('\\') {
+                        v.replace("\\", "")
+                    } else if v.contains('\r') {
+                        v.replace("\r\n", " ")
+                    } else {
+                        v
+                    }
+                })
                 .map_err(|_| FromRowError(row.clone()))?,
             author: row
                 .get_opt::<String, usize>(3)

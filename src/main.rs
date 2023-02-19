@@ -105,7 +105,7 @@ impl FromRow for Article {
                         .unwrap()
                         .or::<String>(Ok(String::from("Anónimo")))
                 })
-                .unwrap(),
+                .map_err(|_| FromRowError(row.clone()))?,
             date: row
                 .get_opt(5)
                 .unwrap()

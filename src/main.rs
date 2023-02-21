@@ -80,16 +80,13 @@ impl FromRow for Article {
     fn from_row_opt(row: Row) -> std::result::Result<Article, FromRowError> {
         Ok(Article {
             slug: row
-                .get_opt(0)
-                .unwrap()
-                .map_err(|_| FromRowError(row.clone()))?,
+                .get(0)
+                .ok_or_else(|| FromRowError(row.clone()))?,
             topic: row
-                .get_opt(1)
-                .unwrap()
-                .map_err(|_| FromRowError(row.clone()))?,
+                .get(1)
+                .ok_or_else(|| FromRowError(row.clone()))?,
             title: row
-                .get_opt::<String, usize>(2)
-                .unwrap()
+                .get::<String, usize>(2)
                 .map(|v| {
                     if v.contains('\\') {
                         v.replace("\\", "")
@@ -99,47 +96,37 @@ impl FromRow for Article {
                         v
                     }
                 })
-                .map_err(|_| FromRowError(row.clone()))?,
+                .ok_or_else(|| FromRowError(row.clone()))?,
             fullname: row
                 .get_opt::<String, usize>(3)
                 .unwrap()
-                .map(|v| match v.as_str() {
+                .ok()
+                .and_then(|v| match v.trim() {
                     "" => None,
                     _ => Some(v),
-                })
-                .unwrap_or(None),
+                }),
             username: row
-                .get_opt(4)
-                .unwrap()
-                .unwrap_or(None),
+                .get(4),
             date: row
-                .get_opt(5)
-                .unwrap()
-                .map_err(|_| FromRowError(row.clone()))?,
+                .get(5)
+                .ok_or_else(|| FromRowError(row.clone()))?,
             mode: row
-                .get_opt::<String, usize>(6)
-                .unwrap()
+                .get::<String, usize>(6)
                 .map(|v| match v.as_str() {
-                    "plaintext" => Ok(PostMode::Text),
-                    "html" => Ok(PostMode::Html),
-                    _ => Ok(PostMode::Unknown),
+                    "plaintext" => PostMode::Text,
+                    "html" => PostMode::Html,
+                    _ => PostMode::Unknown,
                 })
-                .map_err(|_| FromRowError(row.clone()))??,
+                .ok_or_else(|| FromRowError(row.clone()))?,
             summary: row
-                .get_opt(7)
-                .unwrap()
-                .map_err(|_| FromRowError(row.clone()))?,
+                .get(7)
+                .ok_or_else(|| FromRowError(row.clone()))?,
             text: row
-                .get_opt::<String, usize>(8)
-                .unwrap()
-                .map(|v| {
-                    let s = v.trim();
-                    match s {
-                        "" => None,
-                        _ => Some(s.to_string()),
-                    }
-                })
-                .map_err(|_| FromRowError(row.clone()))?,
+                .get::<String, usize>(8)
+                .and_then(|v| match v.trim() {
+                    "" => None,
+                    _ => Some(v),
+                }),
         })
     }
 }
@@ -174,15 +161,11 @@ autor = [\"{}\"]
         }
     }
     fn author(&self) -> String {
-        self.fullname
-            .clone()
-            .unwrap_or(self.username
-                       .clone()
-                       .unwrap_or("Anónimo".to_string())
-            )
+        let anon = String::from("Anónimo");
+        self.fullname.as_ref().or(self.username.as_ref()).unwrap_or(&anon).to_string()
     }
     fn convert(&self) -> String {
-        self.text.clone()
+        self.text.as_ref()
             .map_or(self.run_pandoc(&self.summary),
                     |t| format!("{}\n<!-- more -->\n{}",
                                 self.run_pandoc(&self.summary),

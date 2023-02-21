@@ -68,7 +68,8 @@ struct Article {
     slug: String,
     topic: String,
     title: String,
-    author: String,
+    fullname: Option<String>,
+    username: Option<String>,
     date: String,
     mode: PostMode,
     summary: String,
@@ -99,22 +100,18 @@ impl FromRow for Article {
                     }
                 })
                 .map_err(|_| FromRowError(row.clone()))?,
-            author: row
+            fullname: row
                 .get_opt::<String, usize>(3)
                 .unwrap()
                 .map(|v| match v.as_str() {
-                    "" => row
-                        .get_opt(4)
-                        .unwrap()
-                        .unwrap_or(String::from("Anónimo")),
-                    _ => v,
+                    "" => None,
+                    _ => Some(v),
                 })
-                .or_else(|_| {
-                    row.get_opt(4)
-                        .unwrap()
-                        .or::<String>(Ok(String::from("Anónimo")))
-                })
-                .map_err(|_| FromRowError(row.clone()))?,
+                .unwrap_or(None),
+            username: row
+                .get_opt(4)
+                .unwrap()
+                .unwrap_or(None),
             date: row
                 .get_opt(5)
                 .unwrap()
@@ -171,10 +168,18 @@ autor = [\"{}\"]
                 self.slug,
                 self.date,
                 self.topic,
-                self.author,
+                self.author(),
                 self.convert()
             ),
         }
+    }
+    fn author(&self) -> String {
+        self.fullname
+            .clone()
+            .unwrap_or(self.username
+                       .clone()
+                       .unwrap_or("Anónimo".to_string())
+            )
     }
     fn convert(&self) -> String {
         self.text.clone()

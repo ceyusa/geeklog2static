@@ -5,5 +5,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-mysql = "*"
+mysql = { version = "*", default-features = false, features = ["minimal"] }
+mysql_common = { version = "*", default-features = false, features = ["time03"]}
 pandoc = "0.8"
+time = { version = "0.3", features = ["macros", "formatting"] }

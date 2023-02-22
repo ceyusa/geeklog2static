@@ -9,6 +9,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::mpsc::{channel, Sender};
 use std::thread;
+use time::{PrimitiveDateTime, macros::offset, format_description::well_known::Rfc3339};
 
 struct Content {
     slug: String,
@@ -70,7 +71,7 @@ struct Article {
     title: String,
     fullname: Option<String>,
     username: Option<String>,
-    date: String,
+    date: PrimitiveDateTime,
     mode: PostMode,
     summary: String,
     text: Option<String>,
@@ -153,7 +154,7 @@ autor = [\"{}\"]
 ",
                 self.title,
                 self.slug,
-                self.date,
+                self.date.assume_offset(offset!(-6)).format(&Rfc3339).unwrap(),
                 self.topic,
                 self.author(),
                 self.convert()

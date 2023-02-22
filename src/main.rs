@@ -90,7 +90,7 @@ impl FromRow for Article {
                 .get::<String, usize>(2)
                 .map(|v| {
                     if v.contains('\\') {
-                        v.replace("\\", "")
+                        v.replace('\\', "")
                     } else if v.contains('\r') {
                         v.replace("\r\n", " ")
                     } else {
@@ -170,7 +170,7 @@ autor = [\"{}\"]
             .map_or(self.run_pandoc(&self.summary),
                     |t| format!("{}\n<!-- more -->\n{}",
                                 self.run_pandoc(&self.summary),
-                                self.run_pandoc(&t))
+                                self.run_pandoc(t))
             )
     }
     fn run_pandoc(&self, text: &String) -> String {

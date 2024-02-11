@@ -9,3 +9,11 @@ mysql = { version = "*", default-features = false, features = ["minimal"] }
 mysql_common = { version = "*", default-features = false, features = ["time03"]}
 pandoc = "0.8"
 time = { version = "0.3", features = ["macros", "formatting"] }
+
+[[bin]]
+name = "gl2md"
+path = "src/main.rs"
+
+[[bin]]
+name = "showpost"
+path = "src/showpost.rs"

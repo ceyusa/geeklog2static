@@ -8,6 +8,7 @@ edition = "2018"
 mysql = { version = "*", default-features = false, features = ["minimal"] }
 mysql_common = { version = "*", default-features = false, features = ["time03"]}
 pandoc = "0.8"
+serde = "1.0.216"
 time = { version = "0.3", features = ["macros", "formatting"] }
 
 [[bin]]
@@ -17,3 +18,7 @@ path = "src/main.rs"
 [[bin]]
 name = "showpost"
 path = "src/showpost.rs"
+
+[[bin]]
+name = "comments2json"
+path = "src/comment.rs"

@@ -31,11 +31,10 @@ fn main() -> Result<()> {
         "select stories.sid as id,
                 stories.title as title,
                 count(*) as count
-         from  stories, comments, users
+         from  stories, comments
          where comments.sid = stories.sid
-               and comments.uid = users.uid
          group by stories.sid
-         order by id",
+         order by comments.date",
         | (sid, title, count) : (String, String, usize) | Thread {
             id: format!("/{}", sid),
             title: title.replace(&['\u{91}', '\u{92}'], "'"),

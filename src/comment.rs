@@ -31,12 +31,13 @@ fn main() -> Result<()> {
         "select stories.sid as id,
                 stories.title as title,
                 count(*) as count
-         from  stories, comments
+         from  stories, comments, users
          where comments.sid = stories.sid
+               and comments.uid = users.uid
          group by stories.sid
          order by id",
-        | (id, title, count) : (String, String, usize) | Thread {
-            id,
+        | (sid, title, count) : (String, String, usize) | Thread {
+            id: format!("/{}", sid),
             title: title.replace(&['\u{91}', '\u{92}'], "'"),
             comments: Vec::with_capacity(count),
         },
@@ -56,7 +57,7 @@ fn main() -> Result<()> {
                     where comments.uid = users.uid
                           and comments.sid = ?
                     order by created",
-            (&thread.id,),
+            (&thread.id[1..thread.id.len()],),
             | (id, author, mail, homepage, remote_addr, created, pid, comment) : (u32, String, String, Option<String>, String, String, u32, Vec<u8>) | {
                 Comment {
                     id,
